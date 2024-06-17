@@ -37,7 +37,7 @@ def main(args):
     # create the set of work for each process
     work = [[args, read] for read in reads]
     # let us know that read cleaning has started
-    log.info("Trimming samples with Trimmomatic")
+    log.info("Trimming samples with Trimgalore")
     # start the cleaning process and output dots to indicate file progress
     sys.stdout.write("Running")
     sys.stdout.flush()

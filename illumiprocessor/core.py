@@ -7,6 +7,8 @@ Author: Brant Faircloth
 Created by Brant Faircloth on 30 October 2013 13:10 PDT (-0700)
 Copyright (c) 2013 Brant C. Faircloth. All rights reserved.
 
+Modified by Rebecca Dikow on 07 March 2016
+
 Description:
 
 """
@@ -75,11 +77,11 @@ class SequenceData:
         self.i7a = None
         self.se = args.se
         if args.r1_pattern is None:
-            self.r1_pattern = "{}_(?:.*)_(R1|READ1|Read1|read1)_\\d+.fastq(?:.gz)*"
+            self.r1_pattern = "{}_(?:.*)_(R1|READ1|Read1|read1).fastq(?:.gz)*"
         else:
             self.r1_pattern = args.r1_pattern
         if args.r2_pattern is None:
-            self.r2_pattern = "{}_(?:.*)_(R2|READ2|Read2|read2)_\\d+.fastq(?:.gz)*"
+            self.r2_pattern = "{}_(?:.*)_(R2|READ2|Read2|read2).fastq(?:.gz)*"
         else:
             self.r2_pattern = args.r2_pattern
         self._get_read_data()
@@ -165,7 +167,7 @@ def build_pe_adapters_file(sample):
     return adapters
 
 
-def trimmomatic_se_runner(work):
+def trimgalore_se_runner(work):
     args, sample = work
     # build sample specific adapters files
     adapters = build_se_adapters_file(sample)
@@ -194,46 +196,38 @@ def trimmomatic_se_runner(work):
         # Casava >= 1.8 is Sanger encoded "-phred33" - we almost always use
         # Casava >= 1.8
         cmd = [
-            args.trimmomatic,
-            "SE",
-            "-{}".format(args.phred),
+            args.trimgalore,
             input[0],
-            output[0],
-            "ILLUMINACLIP:{}:2:30:10".format(adapters),
-            "LEADING:5",
-            "TRAILING:15",
-            "SLIDINGWINDOW:4:15",
-            "MINLEN:{}".format(args.min_len),
+            output[0]
         ]
         proc1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stat_file)
         proc1.communicate()
 
-
-class TestJavaAndTrimmomatic:
+class TestTrimgalore:
     def __init__(self):
         cmd = ["java", "-version"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.stdout, self.stderr = proc.communicate()
         self.result_split = self.stderr.decode().strip().split("\n")
 
-    def test_trimmomatic(self, trimmomatic_pth):
-        cmd = [trimmomatic_pth]
+    def test_trimgalore(self, trimgalore_pth):
+        cmd = [trimgalore_pth]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.stdout, self.stderr = proc.communicate()
         # Looks like trimmomatic does not report a version number in any
         # read way, so just check start of output to ensure it appears to be
         # what we want.
-        assert self.stderr.decode("utf-8").startswith(
-            "Usage: "
-        ), "Trimmomatic does not appear to be installed"
+        assert self.stderr.decode("utf-8").find(
+            "No quality "
+        ), "Trimgalore does not appear to be installed"
 
 
 def check_dependencies(args):
-    java = TestJavaAndTrimmomatic()
-    java.test_trimmomatic(args.trimmomatic)
+    java = TestTrimgalore()
+    java.test_trimgalore(args.trimgalore)
 
 
-def trimmomatic_pe_runner(work):
+def trimgalore_pe_runner(work):
     args, sample = work
     # build sample specific adapters files
     adapters = build_pe_adapters_file(sample)
@@ -252,42 +246,43 @@ def trimmomatic_pe_runner(work):
             )
         )
     output = []
-    for read in ["READ1", "READ1-single", "READ2", "READ2-single"]:
-        output.append(
-            os.path.join(sample.trimmed, "{}-{}.fastq.gz".format(sample.end_name, read))
-        )
-    with open(
-        os.path.join(stat_output, "{}-adapter-contam.txt".format(sample.end_name)), "w"
-    ) as stat_file:
+    output = sample.trimmed
+    with open(os.path.join(stat_output, '{}-adapter-contam.txt'.format(sample.end_name)), 'w') as stat_file:
         # Casava >= 1.8 is Sanger encoded "-phred33" - we almost always use
         # Casava >= 1.8
         cmd = [
-            args.trimmomatic,
-            "PE",
-            "-{}".format(args.phred),
+            args.trimgalore,
+            "--length", str(args.tg_length),
+            "--quality", str(args.tg_quality),
+            "--paired",
+            "--retain_unpaired",
+            "--output_dir",
+            output,
+            "--no_report_file",
             input[0],
             input[1],
-            output[0],
-            output[1],
-            output[2],
-            output[3],
-            "ILLUMINACLIP:{}:2:30:10".format(adapters),
-            "LEADING:5",
-            "TRAILING:15",
-            "SLIDINGWINDOW:4:15",
-            "MINLEN:{}".format(args.min_len),
         ]
+        #print("Here is the trimgalore command, hopefully that is useful\n" + \
+        #      " ".join(cmd))
         proc1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stat_file)
         proc1.communicate()
+        #print("This is the sample trimmed: " + sample.trimmed)
+        #print("This is the sample endname: " + sample.end_name)
+        #curr_name = os.path.join(sample.trimmed, '{}-READ1_val_1.fq.gz'.format(sample.end_name))
+        #new_name = os.path.join(sample.trimmed, '{}-READ1.fastq.gz'.format(sample.end_name))
+        #print("This is the curr_name: " + curr_name)
+        #print("This is the new_name: " + new_name)
+        os.rename(os.path.join(sample.trimmed, '{}-READ1_val_1.fq.gz'.format(sample.end_name)), os.path.join(sample.trimmed, '{}-READ1.fastq.gz'.format(sample.end_name)))
+        os.rename(os.path.join(sample.trimmed, '{}-READ2_val_2.fq.gz'.format(sample.end_name)), os.path.join(sample.trimmed, '{}-READ2.fastq.gz'.format(sample.end_name)))
 
-
-def trimmomatic_merger(sample):
+def trimgalore_merger(sample):
     # rename READ1-single to READ-singleton
     singles = []
-    for read in ["READ1-single", "READ2-single"]:
-        singles.append(
-            os.path.join(sample.trimmed, "{}-{}.fastq.gz".format(sample.end_name, read))
-        )
+    for read in ["READ1_unpaired_1", "READ2_unpaired_2"]:
+        singles.append(os.path.join(sample.trimmed, "{}-{}.fq.gz".format(
+            sample.end_name,
+            read
+        )))
     # cat contents of READ2-single into READ-singleton
     new_name = "{}-READ-singleton.fastq.gz".format(sample.end_name)
     new_pth = os.path.join(sample.trimmed, new_name)
@@ -302,11 +297,11 @@ def runner(work):
     args, sample = work
     if not args.se:
         # run trimmomatic to trim adapter contamination and low qual bases
-        trimmomatic_pe_runner(work)
+        trimgalore_pe_runner(work)
         if not args.no_merge:
-            trimmomatic_merger(sample)
+            trimgalore_merger(sample)
     else:
-        trimmomatic_se_runner(work)
+        trimgalore_se_runner(work)
     sys.stdout.write(".")
     sys.stdout.flush()
 

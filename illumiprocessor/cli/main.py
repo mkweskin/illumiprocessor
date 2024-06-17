@@ -19,14 +19,16 @@ from illumiprocessor.pth import get_user_path
 # import pdb
 
 
-def get_trimmomatic_path():
-    return get_user_path("executables", "trimmomatic")
+def get_trimgalore_path():
+    return get_user_path("executables", "trimgalore")
 
+def get_cutadapt_path():
+    return get_user_path("executables", "cutadapt")
 
 def get_args():
     parser = argparse.ArgumentParser(
         description="Batch trim Illumina reads for adapter contamination and "
-        "low quality bases using Trimmomatic",
+                    "low quality bases using trim_galore",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
@@ -48,10 +50,10 @@ def get_args():
         "renaming options.",
     )
     parser.add_argument(
-        "--trimmomatic",
-        default=get_trimmomatic_path(),
+        '--trimgalore',
+        default=get_trimgalore_path(),
         action=core.FullPaths,
-        help="The path to the trimmomatic-0.XX.jar file.",
+        help="The path to the trim_galore executable.",
     )
     parser.add_argument(
         "--min-len", type=int, default=40, help="The minimum length of reads to keep."
@@ -103,6 +105,43 @@ def get_args():
         choices=["INFO", "WARN", "CRITICAL"],
         default="INFO",
         help="""The logging level to use.""",
+    )
+    parser.add_argument(
+        "--paired",
+        action="store_true",
+        default=True,
+        help="""For paired reads.""",
+    )
+    parser.add_argument(
+        '--tg-length',
+        type=int,
+        default=20,
+        help="""Provide Trimgalore with the minimum length of a trimmed sequence (this is the --length <INT> option in trimgalore)""",
+    )
+    parser.add_argument(
+        '--tg-quality',
+        type=int,
+        default=20,
+        help="""Provide Trimgalore with the Phred score used in trimming (this is the --quality <INT> option in trimgalore)""",
+    )
+    parser.add_argument(
+        "--retain_unpaired",
+        action="store_true",
+        default=True,
+        help="""Whether to retain unpaired.""",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        choices=["clean-fastq"],
+        default="clean-fastq",
+        help="""Where to put trimmed files.""",
+                        )
+    parser.add_argument(
+        '--path_to_cutadapt',
+        type=str,
+        default='cutadapt',
+        help="""the path to cutadapt.""",
     )
     return parser.parse_args()
 

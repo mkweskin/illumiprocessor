@@ -1,5 +1,9 @@
 # illumiprocessor [![Build Status](https://travis-ci.org/faircloth-lab/illumiprocessor.png?branch=master)](https://travis-ci.org/faircloth-lab/illumiprocessor)
 
+https://github.com/mkweskin/illumiprocessor
+This fork is for developing support for onther trimmers in addtiion to 
+trimmomatic.
+
 [illumiprocessor][1] is a tool to batch process illumina sequencing reads using
 the excellent [trimmomatic][2] package. The program takes a configuration file
 that is formatted in Microsoft Windows INI file format (key:value pairs, see the
